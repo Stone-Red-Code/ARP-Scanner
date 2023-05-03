@@ -1,4 +1,4 @@
-﻿using ARP_Scanner;
+﻿using ArpLookup;
 
 using NetTools;
 
@@ -7,14 +7,23 @@ using Stone_Red_Utilities.ConsoleExtentions;
 
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.NetworkInformation;
 
-internal class Program
+namespace ARP_Scanner;
+
+internal static class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         bool success = false;
         IPAddress[]? ipAddresses = null;
         MacVendorLookup macVendorLookup = new MacVendorLookup("mac-vendors.csv");
+
+        if (!Arp.IsSupported)
+        {
+            ConsoleExt.WriteLine("ARP is not supported on this platform!", ConsoleColor.Red);
+            return;
+        }
 
         if (args.Length >= 1)
         {
@@ -38,21 +47,21 @@ internal class Program
 
         ConsoleExt.WriteLine("Starting scan...", ConsoleColor.DarkYellow);
 
-        Parallel.ForEach(ipAddresses, ipAddress =>
+        await Parallel.ForEachAsync(ipAddresses, async (ipAddress, _) =>
         {
-            string? mac = new ArpUtilities().SendArpRequest(ipAddress);
+            PhysicalAddress? mac = await Arp.LookupAsync(ipAddress);
 
-            Interlocked.Increment(ref processedIpAddressesCount);
+            int localProcessedIpAddressesCount = Interlocked.Increment(ref processedIpAddressesCount);
             if (mac is not null)
             {
-                List<string> info = new List<string> { ipAddress.ToString(), mac };
-                info.AddRange(macVendorLookup.GetInformation(mac));
-                ConsoleExt.WriteLine($"Progress: {processedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * processedIpAddressesCount:0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
+                List<string> info = new List<string> { ipAddress.ToString(), mac.ToString() };
+                info.AddRange(macVendorLookup.GetInformation(mac.ToString()));
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount:0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
                 activeHosts.Add(info.ToArray());
             }
             else
             {
-                ConsoleExt.WriteLine($"Progress: {processedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * processedIpAddressesCount:0.00}%] | Inactive: {ipAddress}", ConsoleColor.Red);
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount:0.00}%] | Inactive: {ipAddress}", ConsoleColor.Red);
             }
         });
 
