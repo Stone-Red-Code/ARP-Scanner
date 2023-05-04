@@ -10,7 +10,8 @@
 > Note: This programm may not work on all linux distrobutions because the [ArpLookup](https://github.com/georg-jung/ArpLookup) library has some [limitations](ArpLookup)
 
 ## Example
-![ARP-Scanner-Example](https://user-images.githubusercontent.com/56473591/145721773-bd61dc4f-32bf-4476-87bb-ec38b25c8572.png)
+![ARP-Scanner-Example](https://user-images.githubusercontent.com/56473591/236293969-4e8a65d2-86a3-4f10-8837-2b1aa0490252.png)
+
 
 ## Third party licences
 - [ArpLookup](https://github.com/georg-jung/ArpLookup) - [MIT](https://github.com/georg-jung/ArpLookup/blob/master/LICENSE.txt)
