@@ -1,6 +1,6 @@
 # ARP-Scanner
 
-> A lightweight IP scanner for windows
+> A lightweight IP scanner
 
 ## Usage
 
