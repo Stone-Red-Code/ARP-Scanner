@@ -1,6 +1,6 @@
 # ARP-Scanner
 
-> A lightweight IP scanner
+> A lightweight cross-platform IP scanner
 
 ## Usage
 
