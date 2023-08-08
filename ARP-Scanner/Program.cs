@@ -54,8 +54,10 @@ internal static class Program
             int localProcessedIpAddressesCount = Interlocked.Increment(ref processedIpAddressesCount);
             if (mac is not null)
             {
-                List<string> info = new List<string> { ipAddress.ToString(), mac.ToString() };
-                info.AddRange(macVendorLookup.GetInformation(mac.ToString()));
+                string formattedMac = BitConverter.ToString(mac.GetAddressBytes());
+
+                List<string> info = new List<string> { ipAddress.ToString(), formattedMac };
+                info.AddRange(macVendorLookup.GetInformation(formattedMac));
                 ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount:0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
                 activeHosts.Add(info.ToArray());
             }
