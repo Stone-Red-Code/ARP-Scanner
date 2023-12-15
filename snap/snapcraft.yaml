@@ -14,17 +14,17 @@ architectures:
 confinement: strict # use 'strict' once you have the right plugs and slots
 
 parts:
-  arpscanner:
+  arp-scanner:
     # See 'snapcraft plugins'
     plugin: dotnet
     dotnet-build-configuration: Release
     dotnet-self-contained-runtime-identifier: linux-x64
-    source: src
+    source: ./src/ARP-Scanner
     build-packages:
       - dotnet-sdk-6.0
     stage-packages:
       - libicu70
 
 apps:
-  arpscanner:
-    command: arp-scanner
+  arp-scanner:
+    command: ARP-Scanner
