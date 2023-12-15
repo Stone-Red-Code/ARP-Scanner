@@ -5,9 +5,9 @@
 ## Usage
 
 1. Download the latest release
-   - GitHub: https://github.com/Stone-Red-Code/ARP-Scanner/releases
-   - Chocolatey: `choco install arp-scanner`
-   - Snapcraft: `snap install arp-scanner`
+   - Chocolatey (Windows): `choco install arp-scanner`
+   - Snapcraft (Linux): `snap install arp-scanner`
+   - GitHub (Windows/Linux): https://github.com/Stone-Red-Code/ARP-Scanner/releases
 1. Start `ARP-Scanner.exe` or `ARP-Scanner` on Linux with the IP range it should scan as parameter
 
 > Note: This programm may not work on all linux distributions because the [ArpLookup](https://github.com/georg-jung/ArpLookup) library has some [limitations](https://github.com/georg-jung/ArpLookup#supported-platforms)
