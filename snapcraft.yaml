@@ -11,10 +11,10 @@ architectures:
   - build-on: amd64
   - build-on: arm64
 
-confinement: devmode # use 'strict' once you have the right plugs and slots
+confinement: strict # use 'strict' once you have the right plugs and slots
 
 parts:
-  arp-scanner:
+  arpscanner:
     # See 'snapcraft plugins'
     plugin: dotnet
     dotnet-build-configuration: Release
@@ -26,5 +26,5 @@ parts:
       - libicu70
 
 apps:
-  arp-scanner:
+  arpscanner:
     command: arp-scanner
