@@ -21,7 +21,7 @@ parts:
     dotnet-self-contained-runtime-identifier: linux-x64
     source: .
     build-packages:
-      - dotnet-sdk-8.0
+      - dotnet-sdk-6.0
     stage-packages:
       - libicu70
 
