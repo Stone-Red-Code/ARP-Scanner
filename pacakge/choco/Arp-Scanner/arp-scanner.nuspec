@@ -50,7 +50,7 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
 
     <!-- == SOFTWARE SPECIFIC SECTION == -->
     <!-- This section is about the software itself -->
-    <title>Arp-Scanner (Install)</title>
+    <title>Arp-Scanner</title>
     <authors>Stone_Red</authors>
     <!-- projectUrl is required for the community feed -->
     <projectUrl>https://github.com/Stone-Red-Code/Arp-Scanner</projectUrl>
