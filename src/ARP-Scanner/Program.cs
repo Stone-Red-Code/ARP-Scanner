@@ -15,8 +15,6 @@ internal static class Program
 {
     private static async Task Main(string[] args)
     {
-        bool success = false;
-        IPAddress[]? ipAddresses = null;
         MacVendorLookup macVendorLookup = new MacVendorLookup("mac-vendors.csv");
 
         if (!Arp.IsSupported)
@@ -25,20 +23,15 @@ internal static class Program
             return;
         }
 
-        if (args.Length >= 1)
-        {
-            success = IPAddressRange.TryParse(string.Join("", args), out IPAddressRange iPAddressRange);
-            ipAddresses = iPAddressRange.AsEnumerable().ToArray();
-        }
-
-        if (!success || ipAddresses is null)
+        if (!IPAddressRange.TryParse(string.Join("", args), out IPAddressRange ipAddressRange))
         {
             ConsoleExt.WriteLine("Invalid IP range!", ConsoleColor.Red);
             return;
         }
 
-        int ipAddressesCount = ipAddresses.Length;
-        int processedIpAddressesCount = 0;
+        long ipAddressesCount = ipAddressRange.Count();
+        long processedIpAddressesCount = 0;
+        int numberOfDigits = ipAddressesCount.ToString().Length;
 
         List<string> header = new List<string>() { "IP", "MAC" };
         ConcurrentBag<string[]> activeHosts = new ConcurrentBag<string[]>();
@@ -47,23 +40,37 @@ internal static class Program
 
         ConsoleExt.WriteLine("Starting scan...", ConsoleColor.DarkYellow);
 
-        await Parallel.ForEachAsync(ipAddresses, async (ipAddress, _) =>
+        await Parallel.ForEachAsync(ipAddressRange, async (IPAddress ipAddress, CancellationToken _) =>
         {
-            PhysicalAddress? mac = await Arp.LookupAsync(ipAddress);
+            PhysicalAddress? mac = null;
+            bool fail = false;
 
-            int localProcessedIpAddressesCount = Interlocked.Increment(ref processedIpAddressesCount);
+            try
+            {
+                mac = await Arp.LookupAsync(ipAddress);
+            }
+            catch
+            {
+                fail = true;
+            }
+
+            long localProcessedIpAddressesCount = Interlocked.Increment(ref processedIpAddressesCount);
             if (mac is not null)
             {
                 string formattedMac = BitConverter.ToString(mac.GetAddressBytes());
 
                 List<string> info = new List<string> { ipAddress.ToString(), formattedMac };
                 info.AddRange(macVendorLookup.GetInformation(formattedMac));
-                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount:0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
                 activeHosts.Add(info.ToArray());
+            }
+            else if (fail)
+            {
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Failed: {ipAddress}", ConsoleColor.Red);
             }
             else
             {
-                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount:0.00}%] | Inactive: {ipAddress}", ConsoleColor.Red);
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Inactive: {ipAddress}", ConsoleColor.Red);
             }
         });
 
@@ -75,37 +82,13 @@ internal static class Program
 
             activeHostsTable.Insert(0, header.ToArray());
 
-            To2D(activeHostsTable.ToArray()).PrintTable(TableStyle.List);
+            activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
 
             ConsoleExt.WriteLine($"{Environment.NewLine}Found {activeHosts.Count} active hosts", ConsoleColor.Green);
         }
         else
         {
             ConsoleExt.WriteLine($"{Environment.NewLine}No active hosts found", ConsoleColor.Red);
-        }
-    }
-
-    private static T[,] To2D<T>(T[][] source)
-    {
-        try
-        {
-            int FirstDim = source.Length;
-            int SecondDim = source.GroupBy(row => row.Length).Single().Key; // throws InvalidOperationException if source is not rectangular
-
-            T[,]? result = new T[FirstDim, SecondDim];
-            for (int i = 0; i < FirstDim; ++i)
-            {
-                for (int j = 0; j < SecondDim; ++j)
-                {
-                    result[i, j] = source[i][j];
-                }
-            }
-
-            return result;
-        }
-        catch (InvalidOperationException)
-        {
-            throw new InvalidOperationException("The given jagged array is not rectangular.");
         }
     }
 }

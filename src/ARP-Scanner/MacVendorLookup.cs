@@ -24,7 +24,7 @@ internal class MacVendorLookup
 
     public string[] GetInformation(string macAdress)
     {
-        string[]? data = fields.FirstOrDefault(f => macAdress.StartsWith(f[0]))?.ToArray();
+        string[]? data = Array.Find(fields, f => macAdress.StartsWith(f[0]));
 
         if (fields.Length == 0 || header.Length == 0)
         {
