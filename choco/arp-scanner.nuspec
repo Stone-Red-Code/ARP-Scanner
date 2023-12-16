@@ -74,17 +74,17 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
       **Usage**
 
       1. Download the latest release
-      1. Start `ARP-Scanner.exe` or `ARP-Scanner` on Linux with the IP range it should scan as
-      parameter
+      - Chocolatey (Windows): `choco install arp-scanner --version=0.2.0`
+      - Snapcraft (Linux): `snap install arp-scanner`\
+      and `snap connect arp-scanner:network-control` to give it permission to send arp requests
+      - GitHub (Windows/Linux): https://github.com/Stone-Red-Code/ARP-Scanner/releases
+      1. Start `arp-scanner` with the IP range it should scan as parameter (e.g. `192.168.1.0 - 192.168.1.255`)
 
-      Note: This program may not work on all Linux distributions because the ArpLookup library has
-      some limitations (https://github.com/georg-jung/ArpLookup#supported-platforms)
+      &gt; Note: This programm may not work on all linux distributions because the [ArpLookup](https://github.com/georg-jung/ArpLookup) library has some [limitations](https://github.com/georg-jung/ArpLookup#supported-platforms)
 
       **Third party licenses**
-      - ArpLookup (https://github.com/georg-jung/ArpLookup) - MIT
-      (https://github.com/georg-jung/ArpLookup/blob/master/LICENSE.txt)
-      - IPAddressRange (https://github.com/jsakamoto/ipaddressrange) - MPL-2.0
-      (https://github.com/jsakamoto/ipaddressrange/blob/master/LICENSE)
+      - ArpLookup (https://github.com/georg-jung/ArpLookup) - MIT (https://github.com/georg-jung/ArpLookup/blob/master/LICENSE.txt)
+      - IPAddressRange (https://github.com/jsakamoto/ipaddressrange) - MPL-2.0 (https://github.com/jsakamoto/ipaddressrange/blob/master/LICENSE)
     </description>
     <!-- <releaseNotes>__REPLACE_OR_REMOVE__MarkDown_Okay</releaseNotes> -->
     <!-- =============================== -->
@@ -112,6 +112,6 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
   <files>
     <!-- this section controls what actually gets packaged into the Chocolatey package -->
     <file src="tools\**" target="tools" />
-    <file src="..\..\..\src\ARP-Scanner\bin\Release\net6.0\**" target="tools" />
+    <file src="..\src\ARP-Scanner\bin\Release\net6.0\**" target="tools" />
   </files>
 </package>
