@@ -28,3 +28,6 @@ parts:
 apps:
   arp-scanner:
     command: ARP-Scanner
+    plugs:
+      - network
+      - network-control
