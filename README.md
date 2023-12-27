@@ -5,7 +5,7 @@
 ## Usage
 
 1. Download the latest release
-   - Chocolatey (Windows): `choco install arp-scanner --version=0.2.0`
+   - Chocolatey (Windows): `choco install arp-scanner`
    - Snapcraft (Linux): `snap install arp-scanner`\
      and `snap connect arp-scanner:network-control` to give it permission to send arp requests
    - GitHub (Windows/Linux): https://github.com/Stone-Red-Code/ARP-Scanner/releases
