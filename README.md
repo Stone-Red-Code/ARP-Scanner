@@ -11,7 +11,8 @@
    - GitHub (Windows/Linux): https://github.com/Stone-Red-Code/ARP-Scanner/releases
 1. Start `arp-scanner` with the IP range it should scan as parameter (e.g. `192.168.1.0 - 192.168.1.255`)
 
-> Note: This programm may not work on all linux distributions because the [ArpLookup](https://github.com/georg-jung/ArpLookup) library has some [limitations](https://github.com/georg-jung/ArpLookup#supported-platforms)
+> [!Note]
+> This programm may not work on all linux distributions because the [ArpLookup](https://github.com/georg-jung/ArpLookup) library has some [limitations](https://github.com/georg-jung/ArpLookup#supported-platforms)
 
 ## Example
 ![ARP-Scanner-Example](https://user-images.githubusercontent.com/56473591/236293969-4e8a65d2-86a3-4f10-8837-2b1aa0490252.png)
