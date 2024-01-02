@@ -55,7 +55,7 @@ internal static class Program
             }
 
             long localProcessedIpAddressesCount = Interlocked.Increment(ref processedIpAddressesCount);
-            if (mac is not null)
+            if (mac is not null && Array.Exists(mac.GetAddressBytes(), b => b != 0))
             {
                 string formattedMac = BitConverter.ToString(mac.GetAddressBytes());
 
