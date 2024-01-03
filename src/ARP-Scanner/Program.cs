@@ -49,8 +49,9 @@ internal static class Program
             {
                 mac = await Arp.LookupAsync(ipAddress);
             }
-            catch
+            catch (Exception ex)
             {
+                ConsoleExt.WriteLine($"Failed to lookup MAC address for {ipAddress}: {ex.Message}", ConsoleColor.Red);
                 fail = true;
             }
 

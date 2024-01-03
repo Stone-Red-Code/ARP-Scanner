@@ -42,4 +42,4 @@ apps:
   arp-scanner:
     command: ARP-Scanner
     plugs:
-      - network-control
+      - network-observe
