@@ -6,8 +6,7 @@
 
 1. Download the latest release
    - Chocolatey (Windows): `choco install arp-scanner`
-   - Snapcraft (Linux): `snap install arp-scanner`\
-     and `snap connect arp-scanner:network-observe` to give it permission to send arp requests
+   - Snapcraft (Linux): `snap install arp-scanner`
    - GitHub (Windows/Linux): https://github.com/Stone-Red-Code/ARP-Scanner/releases
 1. Start `arp-scanner` with the IP range it should scan as parameter (e.g. `192.168.1.0 - 192.168.1.255`)
 
