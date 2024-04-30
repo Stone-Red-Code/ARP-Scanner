@@ -1,9 +1,8 @@
 ﻿using ArpLookup;
 
-using NetTools;
+using CuteUtils.Misc;
 
-using Stone_Red_Utilities.CollectionExtentions;
-using Stone_Red_Utilities.ConsoleExtentions;
+using NetTools;
 
 using System.Collections.Concurrent;
 using System.Net;
@@ -15,7 +14,7 @@ internal static class Program
 {
     private static async Task Main(string[] args)
     {
-        MacVendorLookup macVendorLookup = new MacVendorLookup("mac-vendors.csv");
+        MacVendorLookup macVendorLookup = new MacVendorLookup();
 
         if (!Arp.IsSupported)
         {
@@ -29,14 +28,16 @@ internal static class Program
             return;
         }
 
+        await macVendorLookup.Initialize();
+
         long ipAddressesCount = ipAddressRange.Count();
         long processedIpAddressesCount = 0;
         int numberOfDigits = ipAddressesCount.ToString().Length;
 
-        List<string> header = new List<string>() { "IP", "MAC" };
-        ConcurrentBag<string[]> activeHosts = new ConcurrentBag<string[]>();
+        List<string> header = ["IP", "MAC"];
+        ConcurrentBag<string[]> activeHosts = [];
 
-        header.AddRange(macVendorLookup.GetHeader());
+        header.AddRange([nameof(MacInformation.VendorName), nameof(MacInformation.BlockType), nameof(MacInformation.Private), nameof(MacInformation.LastUpdate)]);
 
         ConsoleExt.WriteLine("Starting scan...", ConsoleColor.DarkYellow);
 
@@ -60,10 +61,11 @@ internal static class Program
             {
                 string formattedMac = BitConverter.ToString(mac.GetAddressBytes());
 
-                List<string> info = new List<string> { ipAddress.ToString(), formattedMac };
-                info.AddRange(macVendorLookup.GetInformation(formattedMac));
+                MacInformation macInformation = macVendorLookup.GetInformation(formattedMac);
+
+                List<string> info = [ipAddress.ToString(), formattedMac, macInformation.VendorName, macInformation.BlockType, macInformation.Private.ToString() ?? "Unknown", macInformation.LastUpdate];
                 ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
-                activeHosts.Add(info.ToArray());
+                activeHosts.Add([.. info]);
             }
             else if (fail)
             {
@@ -79,9 +81,9 @@ internal static class Program
         {
             Console.WriteLine(Environment.NewLine + "Active hosts:");
 
-            List<string[]>? activeHostsTable = activeHosts.ToList();
+            List<string[]>? activeHostsTable = [.. activeHosts];
 
-            activeHostsTable.Insert(0, header.ToArray());
+            activeHostsTable.Insert(0, [.. header]);
 
             activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
 

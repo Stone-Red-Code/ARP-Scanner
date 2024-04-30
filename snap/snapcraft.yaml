@@ -1,5 +1,5 @@
 name: arp-scanner # you probably want to 'snapcraft register <name>'
-version: "0.2.0.20240103" # just for humans, typically '1.2+git' or '1.3.2'
+version: "1.0.0.0" # just for humans, typically '1.2+git' or '1.3.2'
 grade: stable # must be 'stable' to release into candidate/stable channels
 summary: A lightweight cross-platform IP scanner # 79 char long summary
 description: |
@@ -18,7 +18,7 @@ description: |
   - ArpLookup (https://github.com/georg-jung/ArpLookup) - MIT (https://github.com/georg-jung/ArpLookup/blob/master/LICENSE.txt)
   - IPAddressRange (https://github.com/jsakamoto/ipaddressrange) - MPL-2.0 (https://github.com/jsakamoto/ipaddressrange/blob/master/LICENSE)
 
-base: core22 # the base snap is the execution environment for this snap
+base: core24 # the base snap is the execution environment for this snap
 
 architectures:
   - build-on: amd64
@@ -34,7 +34,7 @@ parts:
     dotnet-self-contained-runtime-identifier: linux-x64
     source: ./src/ARP-Scanner
     build-packages:
-      - dotnet-sdk-6.0
+      - dotnet-sdk-8.0
     stage-packages:
       - libicu70
 
