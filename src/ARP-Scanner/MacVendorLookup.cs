@@ -1,57 +1,95 @@
-﻿using System.Text.RegularExpressions;
+﻿using CuteUtils.Misc;
+
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace ARP_Scanner;
 
-internal class MacVendorLookup
+internal partial class MacVendorLookup
 {
-    public readonly string[] header;
-    private readonly string[][] fields;
+    private const string macLookupUrl = "https://maclookup.app/downloads/json-database/get-db";
+    private readonly HttpClient httpClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(20) };
 
-    public MacVendorLookup(string csvPath)
+    private MacDatabase macDatabase = new MacDatabase();
+
+    public async Task Initialize()
     {
-        if (!File.Exists(csvPath))
+        string cachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "macDatabase.json");
+
+        // Snap support
+        string? snapUserCommon = Environment.GetEnvironmentVariable("SNAP_USER_COMMON");
+
+        if (snapUserCommon is not null)
         {
-            header = Array.Empty<string>();
-            fields = Array.Empty<string[]>();
+            cachePath = Path.Combine(snapUserCommon, "macDatabase.json");
+        }
+
+        if (File.Exists(cachePath))
+        {
+            try
+            {
+                macDatabase = JsonSerializer.Deserialize<MacDatabase>(File.ReadAllText(cachePath)) ?? new MacDatabase();
+            }
+            catch (Exception ex)
+            {
+                ConsoleExt.WriteLine($"Failed to read MAC database cache: {ex.Message}", ConsoleColor.Red);
+            }
+        }
+
+        // Update MAC database if it's older than a week
+        if (macDatabase.LastUpdate > DateTime.Now.AddDays(-7))
+        {
+            ConsoleExt.WriteLine("Using cached MAC database...", ConsoleColor.DarkYellow);
             return;
         }
 
-        string[] lines = File.ReadAllLines(csvPath);
+        ConsoleExt.WriteLine("Downloading MAC database from maclookup.app...", ConsoleColor.DarkYellow);
 
-        header = lines[0].Split(',');
-        fields = lines.Skip(1).Select(l => Regex.Split(l, ",(?=(?:[^\"]*\"[^\"]*\")*(?![^\"]*\"))")).ToArray();
-    }
+        List<MacInformation>? newMacInformations = null;
 
-    public string[] GetInformation(string macAdress)
-    {
-        string[]? data = Array.Find(fields, f => macAdress.StartsWith(f[0]));
-
-        if (fields.Length == 0 || header.Length == 0)
+        try
         {
-            return Array.Empty<string>();
+            newMacInformations = await httpClient.GetFromJsonAsync<List<MacInformation>>(macLookupUrl);
         }
-        else if (data is null)
+        catch (Exception ex)
         {
-            string[] result = new string[header.Length - 1];
-            for (int i = 0; i < result.Length; i++)
+            ConsoleExt.WriteLine($"Failed to download MAC database: {ex.Message}", ConsoleColor.Red);
+        }
+
+        if (newMacInformations is null)
+        {
+            if (macDatabase.MacInformations.Count != 0)
             {
-                result[i] = "Unknown";
+                ConsoleExt.WriteLine("Failed to download MAC database, using cache...", ConsoleColor.DarkYellow);
             }
-            return result;
+            else
+            {
+                ConsoleExt.WriteLine("Failed to download MAC database and no cache found, using empty database...", ConsoleColor.Red);
+            }
         }
         else
         {
-            List<string> result = new List<string>();
-            for (int i = 1; i < header.Length; i++)
-            {
-                result.Add($"{data[i]}");
-            }
-            return result.ToArray();
+            ConsoleExt.WriteLine("MAC database downloaded successfully!", ConsoleColor.Green);
+
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+            macDatabase.MacInformations = newMacInformations;
+            macDatabase.LastUpdate = DateTime.Now;
+            File.WriteAllText(cachePath, JsonSerializer.Serialize(macDatabase));
         }
     }
 
-    public string[] GetHeader()
+    public MacInformation GetInformation(string macAdress)
     {
-        return header!.Skip(1).ToArray();
+        macAdress = macAdress.Replace("-", ":")[..8].ToUpper();
+
+        return macDatabase.MacInformations.Find(m => m.MacPrefix == macAdress) ?? new MacInformation()
+        {
+            MacPrefix = macAdress,
+            VendorName = "Unknown",
+            BlockType = "Unknown",
+            Private = false,
+            LastUpdate = "Unknown"
+        };
     }
 }
