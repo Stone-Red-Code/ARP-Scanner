@@ -17,11 +17,11 @@ description: |
   - ArpLookup (https://github.com/georg-jung/ArpLookup) - MIT (https://github.com/georg-jung/ArpLookup/blob/master/LICENSE.txt)
   - IPAddressRange (https://github.com/jsakamoto/ipaddressrange) - MPL-2.0 (https://github.com/jsakamoto/ipaddressrange/blob/master/LICENSE)
 
-base: core24 # the base snap is the execution environment for this snap
+base: core22 # the base snap is the execution environment for this snap
 
-platforms:
-  amd64:
-  arm64:
+architectures:
+  - build-on: amd64
+  - build-on: arm64
 
 confinement: strict # use 'strict' once you have the right plugs and slots
 
