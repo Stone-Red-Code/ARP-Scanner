@@ -88,7 +88,7 @@ internal partial class MacVendorLookup
             MacPrefix = macAdress,
             VendorName = "Unknown",
             BlockType = "Unknown",
-            Private = false,
+            Private = null,
             LastUpdate = "Unknown"
         };
     }
