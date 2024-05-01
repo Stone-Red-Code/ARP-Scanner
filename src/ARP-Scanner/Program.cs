@@ -64,12 +64,12 @@ internal static class Program
                 MacInformation macInformation = macVendorLookup.GetInformation(formattedMac);
 
                 List<string> info = [ipAddress.ToString(), formattedMac, macInformation.VendorName, macInformation.BlockType, macInformation.Private.ToString() ?? "Unknown", macInformation.LastUpdate];
-                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Active: {ipAddress}", ConsoleColor.Green);
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] |   Active: {ipAddress}", ConsoleColor.Green);
                 activeHosts.Add([.. info]);
             }
             else if (fail)
             {
-                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Failed: {ipAddress}", ConsoleColor.Red);
+                ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] |   Failed: {ipAddress}", ConsoleColor.Red);
             }
             else
             {
@@ -79,7 +79,7 @@ internal static class Program
 
         if (!activeHosts.IsEmpty)
         {
-            Console.WriteLine(Environment.NewLine + "Active hosts:");
+            Console.WriteLine(Environment.NewLine + $"Active host{(activeHosts.Count == 1 ? "s" : "")}:");
 
             List<string[]>? activeHostsTable = [.. activeHosts];
 
@@ -87,7 +87,7 @@ internal static class Program
 
             activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
 
-            ConsoleExt.WriteLine($"{Environment.NewLine}Found {activeHosts.Count} active hosts", ConsoleColor.Green);
+            ConsoleExt.WriteLine($"{Environment.NewLine}Found {activeHosts.Count} active host{(activeHosts.Count == 1 ? "s" : "")}", ConsoleColor.Green);
         }
         else
         {
