@@ -67,7 +67,7 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
     <!--<docsUrl>At
     what url are the software docs located?</docsUrl>-->
     <!--<mailingListUrl></mailingListUrl>-->
-    <!--<bugTrackerUrl></bugTrackerUrl>-->
+    <bugTrackerUrl>https://github.com/Stone-Red-Code/ARP-Scanner/issues</bugTrackerUrl>
     <tags>arp-scanner arp</tags>
     <summary>A lightweight cross-platform IP scanner</summary>
     <description>
