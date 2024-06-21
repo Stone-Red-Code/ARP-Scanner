@@ -71,6 +71,8 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
     <tags>arp-scanner arp</tags>
     <summary>A lightweight cross-platform IP scanner</summary>
     <description>
+      A lightweight cross-platform IP scanner
+
       **Usage**
 
       1. Download the latest release
