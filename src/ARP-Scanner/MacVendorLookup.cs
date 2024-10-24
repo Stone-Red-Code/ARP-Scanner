@@ -45,18 +45,18 @@ internal partial class MacVendorLookup
 
         ConsoleExt.WriteLine("Downloading MAC database from maclookup.app...", ConsoleColor.DarkYellow);
 
-        List<MacInformation>? newMacInformations = null;
+        List<MacInformation>? newMacInformation = null;
 
         try
         {
-            newMacInformations = await httpClient.GetFromJsonAsync<List<MacInformation>>(macLookupUrl);
+            newMacInformation = await httpClient.GetFromJsonAsync<List<MacInformation>>(macLookupUrl);
         }
         catch (Exception ex)
         {
             ConsoleExt.WriteLine($"Failed to download MAC database: {ex.Message}", ConsoleColor.Red);
         }
 
-        if (newMacInformations is null)
+        if (newMacInformation is null)
         {
             if (macDatabase.MacInformations.Count != 0)
             {
@@ -73,19 +73,19 @@ internal partial class MacVendorLookup
 
             _ = Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
-            macDatabase.MacInformations = newMacInformations;
+            macDatabase.MacInformations = newMacInformation;
             macDatabase.LastUpdate = DateTime.Now;
             File.WriteAllText(cachePath, JsonSerializer.Serialize(macDatabase));
         }
     }
 
-    public MacInformation GetInformation(string macAdress)
+    public MacInformation GetInformation(string macAddress)
     {
-        macAdress = macAdress.Replace("-", ":")[..8].ToUpper();
+        macAddress = macAddress.Replace("-", ":")[..8].ToUpper();
 
-        return macDatabase.MacInformations.Find(m => m.MacPrefix == macAdress) ?? new MacInformation()
+        return macDatabase.MacInformations.Find(m => m.MacPrefix == macAddress) ?? new MacInformation()
         {
-            MacPrefix = macAdress,
+            MacPrefix = macAddress,
             VendorName = "Unknown",
             BlockType = "Unknown",
             Private = null,

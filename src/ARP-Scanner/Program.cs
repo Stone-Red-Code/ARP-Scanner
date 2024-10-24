@@ -2,6 +2,8 @@
 
 using CuteUtils.Misc;
 
+using Humanizer;
+
 using NetTools;
 
 using System.Collections.Concurrent;
@@ -37,7 +39,11 @@ internal static class Program
         List<string> header = ["IP", "MAC"];
         ConcurrentBag<string[]> activeHosts = [];
 
-        header.AddRange([nameof(MacInformation.VendorName), nameof(MacInformation.BlockType), nameof(MacInformation.Private), nameof(MacInformation.LastUpdate)]);
+        header.AddRange([
+            nameof(MacInformation.VendorName).Humanize(LetterCasing.Title),
+            nameof(MacInformation.BlockType).Humanize(LetterCasing.Title),
+            nameof(MacInformation.Private).Humanize(LetterCasing.Title),
+            nameof(MacInformation.LastUpdate).Humanize(LetterCasing.Title)]);
 
         ConsoleExt.WriteLine("Starting scan...", ConsoleColor.DarkYellow);
 
@@ -87,7 +93,7 @@ internal static class Program
 
             activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
 
-            ConsoleExt.WriteLine($"{Environment.NewLine}Found {activeHosts.Count} active host{(activeHosts.Count == 1 ? "s" : "")}", ConsoleColor.Green);
+            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"active host".ToQuantity(activeHosts.Count)}", ConsoleColor.Green);
         }
         else
         {
