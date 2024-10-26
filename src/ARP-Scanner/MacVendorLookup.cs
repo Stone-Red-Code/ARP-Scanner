@@ -14,6 +14,12 @@ internal partial class MacVendorLookup
 
     public async Task Initialize(bool silent)
     {
+        if (macDatabase.MacInformations.Count != 0)
+        {
+            // Already initialized
+            return;
+        }
+
         string cachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "macDatabase.json");
 
         // Snap support

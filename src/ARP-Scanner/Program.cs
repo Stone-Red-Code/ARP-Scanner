@@ -5,18 +5,30 @@ using CommandLine;
 using CuteUtils.Misc;
 
 using Humanizer;
+using Humanizer.Localisation;
 
 using NetTools;
 
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ARP_Scanner;
 
 internal static class Program
 {
+    private static readonly MacVendorLookup macVendorLookup = new();
+    private static readonly List<string[]> previouslyActiveHosts = [];
+
+    private static readonly JsonSerializerOptions jsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private static async Task<int> Main(string[] args)
     {
         if (!Arp.IsSupported)
@@ -25,8 +37,45 @@ internal static class Program
             return 1;
         }
 
-        return await Parser.Default.ParseArguments<ScanOptions>(args)
-            .MapResult(StartScan, HandleParseError);
+        return await Parser.Default.ParseArguments<ScanOptions, MonitorOptions>(args)
+            .MapResult(
+            (MonitorOptions monitorOptions) => StartMonitor(monitorOptions),
+            (ScanOptions scanOptions) => StartScan(scanOptions),
+            HandleParseError);
+    }
+
+    private static async Task<int> StartMonitor(MonitorOptions options)
+    {
+        ConsoleExt.WriteLine($"Monitoring IP range '{options.IpRange}' every {options.Delay} seconds...", ConsoleColor.DarkYellow);
+
+        while (true)
+        {
+            int exitCode = await StartScan(options);
+
+            if (exitCode != 0)
+            {
+                return exitCode;
+            }
+
+            Console.WriteLine();
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
+            bool printed = false;
+
+            while (stopwatch.Elapsed < TimeSpan.FromSeconds(options.Delay))
+            {
+                TimeSpan remainingTime = TimeSpan.FromSeconds(options.Delay) - stopwatch.Elapsed;
+                Console.Write($"\rNext scan in: {remainingTime.Humanize(3, minUnit: TimeUnit.Second)} ");
+                await Task.Delay(1000);
+                printed = true;
+            }
+
+            if (printed)
+            {
+                Console.Write($"\r{new string(' ', Console.WindowWidth)}\r");
+            }
+        }
     }
 
     private static async Task<int> StartScan(ScanOptions options)
@@ -37,14 +86,12 @@ internal static class Program
             return 2;
         }
 
-        MacVendorLookup macVendorLookup = new MacVendorLookup();
         await macVendorLookup.Initialize(options.Silent);
 
         long ipAddressesCount = ipAddressRange.Count();
         long processedIpAddressesCount = 0;
         int numberOfDigits = ipAddressesCount.ToString().Length;
         int exitCode = 0;
-
 
         ConcurrentBag<string[]> activeHosts = [];
 
@@ -97,7 +144,7 @@ internal static class Program
 
                 MacInformation macInformation = macVendorLookup.GetInformation(formattedMac);
 
-                List<string> info = [ipAddress.ToString(), formattedMac, macInformation.VendorName, macInformation.BlockType, macInformation.Private.ToString() ?? "Unknown", macInformation.LastUpdate];
+                List<string> info = [ipAddress.ToString(), formattedMac, macInformation.VendorName, macInformation.BlockType, macInformation.Private?.ToString() ?? "Unknown", macInformation.LastUpdate];
                 if (!options.Silent)
                 {
                     ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] |   Active: {ipAddress}", ConsoleColor.Green);
@@ -120,25 +167,13 @@ internal static class Program
             }
         });
 
-        if (!options.Silent)
+        if (previouslyActiveHosts.Count > 0 && !options.Silent)
         {
-            Console.WriteLine();
-        }
-
-        List<string[]>? activeHostsTable = [.. activeHosts];
-        activeHostsTable.Insert(0, [.. header]);
-
-        if (!activeHosts.IsEmpty)
-        {
-            Console.WriteLine($"Active host{(activeHosts.Count == 1 ? "s" : "")}:");
-
-            activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
-
-            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"active host".ToQuantity(activeHosts.Count)}", ConsoleColor.Green);
+            PrintDifference(activeHosts, header);
         }
         else if (!options.Silent)
         {
-            ConsoleExt.WriteLine($"No active hosts found", ConsoleColor.Red);
+            PrintActiveHosts(activeHosts, header);
         }
 
         if (!options.Silent && (options.JsonPath is not null || options.CsvPath is not null))
@@ -148,20 +183,25 @@ internal static class Program
 
         if (options.JsonPath is not null)
         {
+            string jsonPath = GetOutputPath(options.JsonPath, ".json");
+
             try
             {
-                File.WriteAllText(options.JsonPath, JsonSerializer.Serialize(JsonResult.Parse([.. activeHosts])));
+                _ = Directory.CreateDirectory(Path.GetDirectoryName(jsonPath) ?? string.Empty);
+
+                string json = JsonSerializer.Serialize(JsonResult.Parse([.. activeHosts], previouslyActiveHosts), jsonSerializerOptions);
+                File.WriteAllText(jsonPath, json);
 
                 if (!options.Silent)
                 {
-                    ConsoleExt.WriteLine($"Saved JSON to '{options.JsonPath}'", ConsoleColor.Green);
+                    ConsoleExt.WriteLine($"Saved JSON to '{jsonPath}'", ConsoleColor.Green);
                 }
             }
             catch (Exception ex)
             {
                 if (!options.Silent)
                 {
-                    ConsoleExt.WriteLine($"Failed to save JSON to '{options.JsonPath}': {ex.Message}", ConsoleColor.Red);
+                    ConsoleExt.WriteLine($"Failed to save JSON to '{jsonPath}': {ex.Message}", ConsoleColor.Red);
                 }
 
                 exitCode = 3;
@@ -170,24 +210,35 @@ internal static class Program
 
         if (options.CsvPath is not null)
         {
+            string csvPath = GetOutputPath(options.CsvPath, ".csv");
+            List<string[]>? activeHostsTable = [.. activeHosts];
+            activeHostsTable.Insert(0, [.. header]);
+
             try
             {
-                File.WriteAllLines(options.CsvPath, activeHostsTable.Select(row => string.Join(",", row)));
+                _ = Directory.CreateDirectory(Path.GetDirectoryName(csvPath) ?? string.Empty);
+                File.WriteAllLines(csvPath, activeHostsTable.Select(row => string.Join(",", row)));
 
                 if (!options.Silent)
                 {
-                    ConsoleExt.WriteLine($"Saved CSV to '{options.CsvPath}'", ConsoleColor.Green);
+                    ConsoleExt.WriteLine($"Saved CSV to '{csvPath}'", ConsoleColor.Green);
                 }
             }
             catch (Exception ex)
             {
                 if (!options.Silent)
                 {
-                    ConsoleExt.WriteLine($"Failed to save CSV to '{options.CsvPath}': {ex.Message}", ConsoleColor.Red);
+                    ConsoleExt.WriteLine($"Failed to save CSV to '{csvPath}': {ex.Message}", ConsoleColor.Red);
                 }
 
                 exitCode = 3;
             }
+        }
+
+        previouslyActiveHosts.Clear();
+        foreach (string[] activeHost in activeHosts)
+        {
+            previouslyActiveHosts.Add(activeHost);
         }
 
         return exitCode;
@@ -202,6 +253,90 @@ internal static class Program
         else
         {
             return Task.FromResult(1);
+        }
+    }
+
+    private static string GetOutputPath(string path, string extension)
+    {
+        string directory = Path.GetDirectoryName(path) ?? string.Empty;
+        string fileName = Path.GetFileNameWithoutExtension(path);
+        string fileExtension = Path.GetExtension(path);
+        fileExtension = string.IsNullOrEmpty(fileExtension) ? extension : fileExtension;
+
+        string dateTime = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+
+        string newPath = Path.Combine(directory, $"{fileName}_{dateTime}{fileExtension}");
+
+        int counter = 0;
+        while (File.Exists(newPath))
+        {
+            newPath = Path.Combine(directory, $"{fileName}_{dateTime}_{++counter}{fileExtension}");
+        }
+
+        return newPath;
+    }
+
+    private static void PrintActiveHosts(ConcurrentBag<string[]> activeHosts, List<string> header)
+    {
+        List<string[]>? activeHostsTable = [.. activeHosts];
+        activeHostsTable.Insert(0, [.. header]);
+
+        Console.WriteLine();
+
+        if (!activeHosts.IsEmpty)
+        {
+            Console.WriteLine($"Active hosts:");
+
+            activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
+
+            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"active host".ToQuantity(activeHosts.Count)}", ConsoleColor.Green);
+        }
+        else
+        {
+            ConsoleExt.WriteLine($"No active hosts found", ConsoleColor.Red);
+        }
+    }
+
+    private static void PrintDifference(ConcurrentBag<string[]> activeHosts, List<string> header)
+    {
+        List<string[]> newHosts = activeHosts.Where(activeHost => !previouslyActiveHosts.Exists(previousHost => previousHost[1] == activeHost[1])).ToList();
+        List<string[]> removedHosts = previouslyActiveHosts.Where(previousHost => !activeHosts.Any(activeHost => activeHost[1] == previousHost[1])).ToList();
+
+        List<string[]>? newHostsTable = [.. newHosts];
+        newHostsTable.Insert(0, [.. header]);
+
+        List<string[]>? removedHostsTable = [.. removedHosts];
+        removedHostsTable.Insert(0, [.. header]);
+
+        Console.WriteLine();
+
+        if (newHosts.Count > 0)
+        {
+            Console.WriteLine($"New hosts:");
+
+            newHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
+
+            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"active host".ToQuantity(activeHosts.Count)}", ConsoleColor.Green);
+        }
+        else
+        {
+            ConsoleExt.WriteLine($"No new hosts found", ConsoleColor.Blue);
+        }
+
+        Console.WriteLine();
+
+        if (removedHosts.Count > 0)
+        {
+            // Better term for removed host?
+            Console.WriteLine($"Previously active hosts:");
+
+            removedHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
+
+            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"previously active host".ToQuantity(removedHosts.Count)}", ConsoleColor.Red);
+        }
+        else
+        {
+            ConsoleExt.WriteLine($"No previously active hosts are currently inactive", ConsoleColor.Blue);
         }
     }
 }
