@@ -2,5 +2,7 @@
 Verification is intended to assist the Chocolatey moderators and community
 in verifying that this package's contents are trustworthy.
 
+Source Code: https://github.com/Stone-Red-Code/Arp-Scanner
+Releases: https://github.com/Stone-Red-Code/ARP-Scanner/releases
 Checksum: c37a793bae228da768c9d4223d12608bfa28decbe7142e9ac19a49795cf23b82b2f0434032b98883343c658276bf2e4423926fbf79c65c48ae6cf11ad48d37ad
-Veify using: certutil -hashfile ARP-Scanner.exe sha512
+Veify using: certutil -hashfile C:\ProgramData\Chocolatey\lib\arp-scanner\ARP-Scanner.exe sha512
