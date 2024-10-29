@@ -2,7 +2,7 @@
 
 namespace ARP_Scanner;
 
-[Verb("scan", HelpText = "Scan the specified IP range.")]
+[Verb("scan", true, HelpText = "Scan the specified IP range.")]
 internal class ScanOptions
 {
     [Value(0, Required = true, MetaName = "IP range", HelpText = "The IP range to scan.")]
