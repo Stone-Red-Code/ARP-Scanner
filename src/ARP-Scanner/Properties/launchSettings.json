@@ -2,7 +2,7 @@
   "profiles": {
     "ARP-Scanner": {
       "commandName": "Project",
-      "commandLineArgs": "192.168.1.0 - 192.168.1.255"
+      "commandLineArgs": "scan 192.168.1.239"
     }
   }
 }

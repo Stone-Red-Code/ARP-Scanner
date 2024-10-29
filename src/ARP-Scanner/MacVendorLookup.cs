@@ -12,8 +12,14 @@ internal partial class MacVendorLookup
 
     private MacDatabase macDatabase = new MacDatabase();
 
-    public async Task Initialize()
+    public async Task Initialize(bool silent)
     {
+        if (macDatabase.MacInformations.Count != 0)
+        {
+            // Already initialized
+            return;
+        }
+
         string cachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "macDatabase.json");
 
         // Snap support
@@ -32,32 +38,49 @@ internal partial class MacVendorLookup
             }
             catch (Exception ex)
             {
-                ConsoleExt.WriteLine($"Failed to read MAC database cache: {ex.Message}", ConsoleColor.Red);
+                if (!silent)
+                {
+                    ConsoleExt.WriteLine($"Failed to read MAC database cache: {ex.Message}", ConsoleColor.Red);
+                }
             }
         }
 
         // Update MAC database if it's older than a week
         if (macDatabase.LastUpdate > DateTime.Now.AddDays(-7))
         {
-            ConsoleExt.WriteLine("Using cached MAC database...", ConsoleColor.DarkYellow);
+            if (!silent)
+            {
+                ConsoleExt.WriteLine("Using cached MAC database...", ConsoleColor.DarkYellow);
+            }
             return;
         }
 
-        ConsoleExt.WriteLine("Downloading MAC database from maclookup.app...", ConsoleColor.DarkYellow);
+        if (!silent)
+        {
+            ConsoleExt.WriteLine("Downloading MAC database from maclookup.app...", ConsoleColor.DarkYellow);
+        }
 
-        List<MacInformation>? newMacInformations = null;
+        List<MacInformation>? newMacInformation = null;
 
         try
         {
-            newMacInformations = await httpClient.GetFromJsonAsync<List<MacInformation>>(macLookupUrl);
+            newMacInformation = await httpClient.GetFromJsonAsync<List<MacInformation>>(macLookupUrl);
         }
         catch (Exception ex)
         {
-            ConsoleExt.WriteLine($"Failed to download MAC database: {ex.Message}", ConsoleColor.Red);
+            if (!silent)
+            {
+                ConsoleExt.WriteLine($"Failed to download MAC database: {ex.Message}", ConsoleColor.Red);
+            }
         }
 
-        if (newMacInformations is null)
+        if (newMacInformation is null)
         {
+            if (silent)
+            {
+                return;
+            }
+
             if (macDatabase.MacInformations.Count != 0)
             {
                 ConsoleExt.WriteLine("Failed to download MAC database, using cache...", ConsoleColor.DarkYellow);
@@ -69,26 +92,29 @@ internal partial class MacVendorLookup
         }
         else
         {
-            ConsoleExt.WriteLine("MAC database downloaded successfully!", ConsoleColor.Green);
+            if (!silent)
+            {
+                ConsoleExt.WriteLine("MAC database downloaded successfully!", ConsoleColor.Green);
+            }
 
             _ = Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
-            macDatabase.MacInformations = newMacInformations;
+            macDatabase.MacInformations = newMacInformation;
             macDatabase.LastUpdate = DateTime.Now;
             File.WriteAllText(cachePath, JsonSerializer.Serialize(macDatabase));
         }
     }
 
-    public MacInformation GetInformation(string macAdress)
+    public MacInformation GetInformation(string macAddress)
     {
-        macAdress = macAdress.Replace("-", ":")[..8].ToUpper();
+        macAddress = macAddress.Replace("-", ":")[..8].ToUpper();
 
-        return macDatabase.MacInformations.Find(m => m.MacPrefix == macAdress) ?? new MacInformation()
+        return macDatabase.MacInformations.Find(m => m.MacPrefix == macAddress) ?? new MacInformation()
         {
-            MacPrefix = macAdress,
+            MacPrefix = macAddress,
             VendorName = "Unknown",
             BlockType = "Unknown",
-            Private = false,
+            Private = null,
             LastUpdate = "Unknown"
         };
     }
