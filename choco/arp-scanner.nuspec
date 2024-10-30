@@ -40,7 +40,7 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
     <!-- Note that unstable versions like 0.0.1 can be considered a released version, but it's
     possible that one can release a 0.0.1-beta before you release a 0.0.1 version. If the version
     number is final, that is considered a released version and not a prerelease. -->
-    <version>1.0.0.0</version>
+    <version>1.1.0.0</version>
     <!-- <packageSourceUrl>Where is this Chocolatey package located (think GitHub)? packageSourceUrl
     is highly recommended for the community feed</packageSourceUrl>-->
     <!-- owners is a poor name for maintainers of the package. It sticks around by this name for
@@ -71,21 +71,25 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
     <tags>arp-scanner arp</tags>
     <summary>A lightweight cross-platform IP scanner</summary>
     <description>
-      A lightweight cross-platform IP scanner
-
       **Usage**
 
-      1. Download the latest release
+      1. Download &amp; install the latest release
       - Chocolatey (Windows): `choco install arp-scanner`
       - Snapcraft (Linux): `snap install arp-scanner`
-      - GitHub (Windows/Linux): [releases](https://github.com/Stone-Red-Code/ARP-Scanner/releases)
-      2. Start `arp-scanner` with the IP range it should scan as parameter (e.g. `192.168.1.0 - 192.168.1.255`)
+      - GitHub (Windows/Linux): releases (https://github.com/Stone-Red-Code/ARP-Scanner/releases)
+      2. Use the `arp-scanner` command
+      - `arp-scanner help` lists all available commands
+      - `arp-scanner scan` scans the network for devices
+      - `arp-scanner scan --help` lists all available options for the scan command
+      - `arp-scanner monitor` continuously scans the network for devices
+      - `arp-scanner monitor --help` lists all available options for the monitor command
 
-      &gt; Note: This programm may not work on all linux distributions because the [ArpLookup](https://github.com/georg-jung/ArpLookup) library has some [limitations](https://github.com/georg-jung/ArpLookup#supported-platforms)
+      Note: This programm may not work on all linux distributions because the ArpLookup (https://github.com/georg-jung/ArpLookup) library has some limitations (https://github.com/georg-jung/ArpLookup#supported-platforms)
 
       **Third party licenses**
       - ArpLookup (https://github.com/georg-jung/ArpLookup) - MIT (https://github.com/georg-jung/ArpLookup/blob/master/LICENSE.txt)
       - IPAddressRange (https://github.com/jsakamoto/ipaddressrange) - MPL-2.0 (https://github.com/jsakamoto/ipaddressrange/blob/master/LICENSE)
+      - Humanizer (https://github.com/Humanizr/Humanizer) - MIT (https://github.com/Humanizr/Humanizer/blob/main/license.txt)
     </description>
     <releaseNotes>https://github.com/Stone-Red-Code/ARP-Scanner/releases/latest</releaseNotes>
     <!-- =============================== -->
