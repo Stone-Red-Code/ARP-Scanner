@@ -187,7 +187,10 @@ internal static class Program
 
             try
             {
-                _ = Directory.CreateDirectory(Path.GetDirectoryName(jsonPath) ?? string.Empty);
+                if (!string.IsNullOrWhiteSpace(Path.GetDirectoryName(jsonPath)))
+                {
+                    _ = Directory.CreateDirectory(Path.GetDirectoryName(jsonPath)!);
+                }
 
                 string json = JsonSerializer.Serialize(JsonResult.Parse([.. activeHosts], previouslyActiveHosts), jsonSerializerOptions);
                 File.WriteAllText(jsonPath, json);
@@ -216,7 +219,11 @@ internal static class Program
 
             try
             {
-                _ = Directory.CreateDirectory(Path.GetDirectoryName(csvPath) ?? string.Empty);
+                if (!string.IsNullOrWhiteSpace(Path.GetDirectoryName(csvPath)))
+                {
+                    _ = Directory.CreateDirectory(Path.GetDirectoryName(csvPath)!);
+                }
+
                 File.WriteAllLines(csvPath, activeHostsTable.Select(row => string.Join(",", row)));
 
                 if (!options.Silent)
