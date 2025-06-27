@@ -40,7 +40,7 @@ enclosed in quotation marks, you should use an editor that supports UTF-8, not t
     <!-- Note that unstable versions like 0.0.1 can be considered a released version, but it's
     possible that one can release a 0.0.1-beta before you release a 0.0.1 version. If the version
     number is final, that is considered a released version and not a prerelease. -->
-    <version>1.1.0.0</version>
+    <version>1.1.0.20250627</version>
     <!-- <packageSourceUrl>Where is this Chocolatey package located (think GitHub)? packageSourceUrl
     is highly recommended for the community feed</packageSourceUrl>-->
     <!-- owners is a poor name for maintainers of the package. It sticks around by this name for
