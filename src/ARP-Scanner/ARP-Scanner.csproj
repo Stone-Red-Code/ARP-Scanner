@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Version>1.1.0.20250627</Version>
+    <AssemblyVersion>1.1.0.0627</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
