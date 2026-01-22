@@ -46,7 +46,11 @@ internal static class Program
 
     private static async Task<int> StartMonitor(MonitorOptions options)
     {
-        ConsoleExt.WriteLine($"Monitoring IP range '{options.IpRange}' every {options.Delay} seconds...", ConsoleColor.DarkYellow);
+        string monitorTarget = string.IsNullOrWhiteSpace(options.IpRange) && options.AutoDiscover
+            ? "all local subnets"
+            : options.IpRange ?? "<none>";
+
+        ConsoleExt.WriteLine($"Monitoring IP range '{monitorTarget}' every {options.Delay} seconds...", ConsoleColor.DarkYellow);
 
         while (true)
         {
@@ -80,15 +84,40 @@ internal static class Program
 
     private static async Task<int> StartScan(ScanOptions options)
     {
-        if (!IPAddressRange.TryParse(options.IpRange, out IPAddressRange ipAddressRange))
+        IEnumerable<IPAddress> ipAddresses;
+
+        if (options.AutoDiscover && string.IsNullOrWhiteSpace(options.IpRange))
         {
-            ConsoleExt.WriteLine("Invalid IP range!", ConsoleColor.Red);
-            return 2;
+            ipAddresses = GetLocalSubnets();
+
+            if (!ipAddresses.Any())
+            {
+                ConsoleExt.WriteLine("No local IPv4 subnets found for auto discovery.", ConsoleColor.Red);
+                return 2;
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(options.IpRange))
+            {
+                ConsoleExt.WriteLine("IP range is required when auto discovery is disabled.", ConsoleColor.Red);
+                return 2;
+            }
+
+            if (!IPAddressRange.TryParse(options.IpRange, out IPAddressRange ipAddressRange))
+            {
+                ConsoleExt.WriteLine("Invalid IP range!", ConsoleColor.Red);
+                return 2;
+            }
+
+            ipAddresses = ipAddressRange;
         }
 
         await macVendorLookup.Initialize(options.Silent);
 
-        long ipAddressesCount = ipAddressRange.Count();
+        long ipAddressesCount = ipAddresses is IPAddressRange range
+            ? range.Count()
+            : ipAddresses.LongCount();
         long processedIpAddressesCount = 0;
         int numberOfDigits = ipAddressesCount.ToString().Length;
         int exitCode = 0;
@@ -114,7 +143,9 @@ internal static class Program
             MaxDegreeOfParallelism = options.Concurrency
         };
 
-        await Parallel.ForEachAsync(ipAddressRange, parallelOptions, async (IPAddress ipAddress, CancellationToken _) =>
+        bool suppressPerIpOutput = options is MonitorOptions monitorOptions && (monitorOptions.ChangesOnly || monitorOptions.Summary);
+
+        await Parallel.ForEachAsync(ipAddresses, parallelOptions, async (IPAddress ipAddress, CancellationToken _) =>
         {
             PhysicalAddress? mac = null;
             bool fail = false;
@@ -145,7 +176,7 @@ internal static class Program
                 MacInformation macInformation = macVendorLookup.GetInformation(formattedMac);
 
                 List<string> info = [ipAddress.ToString(), formattedMac, macInformation.VendorName, macInformation.BlockType, macInformation.Private?.ToString() ?? "Unknown", macInformation.LastUpdate];
-                if (!options.Silent)
+                if (!options.Silent && !suppressPerIpOutput)
                 {
                     ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] |   Active: {ipAddress}", ConsoleColor.Green);
                 }
@@ -153,14 +184,14 @@ internal static class Program
             }
             else if (fail)
             {
-                if (!options.Silent)
+                if (!options.Silent && !suppressPerIpOutput)
                 {
                     ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] |   Failed: {ipAddress}", ConsoleColor.Red);
                 }
             }
             else
             {
-                if (!options.Silent)
+                if (!options.Silent && !suppressPerIpOutput)
                 {
                     ConsoleExt.WriteLine($"Progress: {localProcessedIpAddressesCount.ToString().PadLeft(numberOfDigits)}/{ipAddressesCount} [{100d / ipAddressesCount * localProcessedIpAddressesCount,6:##0.00}%] | Inactive: {ipAddress}", ConsoleColor.Red);
                 }
@@ -169,11 +200,11 @@ internal static class Program
 
         if (previouslyActiveHosts.Count > 0 && !options.Silent)
         {
-            PrintDifference(activeHosts, header);
+            PrintDifference(activeHosts, header, options);
         }
         else if (!options.Silent)
         {
-            PrintActiveHosts(activeHosts, header);
+            PrintActiveHosts(activeHosts, header, options);
         }
 
         if (!options.Silent && (options.JsonPath is not null || options.CsvPath is not null))
@@ -283,67 +314,206 @@ internal static class Program
         return newPath;
     }
 
-    private static void PrintActiveHosts(ConcurrentBag<string[]> activeHosts, List<string> header)
+    private static void PrintActiveHosts(ConcurrentBag<string[]> activeHosts, List<string> header, ScanOptions options)
     {
-        List<string[]>? activeHostsTable = [.. activeHosts];
+        IEnumerable<string[]> filtered = FilterByVendorAndMacPrefix(activeHosts, options);
+
+        List<string[]> activeHostsTable = [.. filtered];
         activeHostsTable.Insert(0, [.. header]);
 
         Console.WriteLine();
 
-        if (!activeHosts.IsEmpty)
+        int filteredCount = GetHostCount(activeHostsTable);
+
+        if (filteredCount > 0)
         {
-            Console.WriteLine($"Active hosts:");
-
-            activeHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
-
-            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"active host".ToQuantity(activeHosts.Count)}", ConsoleColor.Green);
+            PrintSection("Active hosts", "active host", activeHostsTable, options, ConsoleColor.Green);
         }
         else
         {
-            ConsoleExt.WriteLine($"No active hosts found", ConsoleColor.Red);
+            ConsoleExt.WriteLine("No active hosts found", ConsoleColor.Red);
         }
     }
 
-    private static void PrintDifference(ConcurrentBag<string[]> activeHosts, List<string> header)
+    private static void PrintDifference(ConcurrentBag<string[]> activeHosts, List<string> header, ScanOptions options)
     {
         List<string[]> newHosts = activeHosts.Where(activeHost => !previouslyActiveHosts.Exists(previousHost => previousHost[1] == activeHost[1])).ToList();
         List<string[]> removedHosts = previouslyActiveHosts.Where(previousHost => !activeHosts.Any(activeHost => activeHost[1] == previousHost[1])).ToList();
 
-        List<string[]>? newHostsTable = [.. newHosts];
+        List<string[]> newHostsTable = [.. FilterByVendorAndMacPrefix(newHosts, options)];
         newHostsTable.Insert(0, [.. header]);
 
-        List<string[]>? removedHostsTable = [.. removedHosts];
+        List<string[]> removedHostsTable = [.. FilterByVendorAndMacPrefix(removedHosts, options)];
         removedHostsTable.Insert(0, [.. header]);
 
         Console.WriteLine();
 
-        if (newHosts.Count > 0)
+        bool isMonitoring = options is MonitorOptions;
+
+        int newCount = GetHostCount(newHostsTable);
+
+        if (newCount > 0)
         {
-            Console.WriteLine($"New hosts:");
-
-            newHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
-
-            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"active host".ToQuantity(activeHosts.Count)}", ConsoleColor.Green);
+            PrintSection("New hosts", "active host", newHostsTable, options, ConsoleColor.Green, " (summary mode)");
         }
         else
         {
-            ConsoleExt.WriteLine($"No new hosts found", ConsoleColor.Blue);
+            ConsoleExt.WriteLine("No new hosts found", ConsoleColor.Blue);
         }
 
         Console.WriteLine();
 
-        if (removedHosts.Count > 0)
+        int removedCount = GetHostCount(removedHostsTable);
+
+        if (removedCount > 0)
         {
             // Better term for removed host?
-            Console.WriteLine($"Previously active hosts:");
-
-            removedHostsTable.ToArray().To2D().PrintTable(TableStyle.List);
-
-            ConsoleExt.WriteLine($"{Environment.NewLine}Found {"previously active host".ToQuantity(removedHosts.Count)}", ConsoleColor.Red);
+            PrintSection("Previously active hosts", "previously active host", removedHostsTable, options, ConsoleColor.Red, " now inactive (summary mode)");
         }
         else
         {
-            ConsoleExt.WriteLine($"No previously active hosts are currently inactive", ConsoleColor.Blue);
+            ConsoleExt.WriteLine("No previously active hosts are currently inactive", ConsoleColor.Blue);
+        }
+
+        if (isMonitoring && options is MonitorOptions monitorOptions)
+        {
+            // Execute user-defined commands for new and removed hosts, if configured.
+            JsonResult jsonResult = JsonResult.Parse([.. activeHosts], previouslyActiveHosts);
+
+            if (newHosts.Count > 0 && !string.IsNullOrWhiteSpace(monitorOptions.OnNewCommand))
+            {
+                ExecuteMonitorCommand(monitorOptions.OnNewCommand!, jsonResult.NewHosts);
+            }
+
+            if (removedHosts.Count > 0 && !string.IsNullOrWhiteSpace(monitorOptions.OnRemovedCommand))
+            {
+                ExecuteMonitorCommand(monitorOptions.OnRemovedCommand!, jsonResult.RemovedHosts);
+            }
+        }
+    }
+
+    private static IEnumerable<string[]> FilterByVendorAndMacPrefix(IEnumerable<string[]> hosts, ScanOptions options)
+    {
+        IEnumerable<string[]> filtered = hosts;
+
+        if (!string.IsNullOrWhiteSpace(options.VendorFilter))
+        {
+            string vendorFilter = options.VendorFilter.Trim();
+            filtered = filtered.Where(h => h.Length > 2 && h[2].Contains(vendorFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.MacPrefixFilter))
+        {
+            string macPrefix = options.MacPrefixFilter.Trim().Replace("-", ":").ToUpperInvariant();
+            filtered = filtered.Where(h => h.Length > 1 && h[1].Replace("-", ":").ToUpperInvariant().StartsWith(macPrefix, StringComparison.Ordinal));
+        }
+
+        return filtered;
+    }
+
+    private static int GetHostCount(List<string[]> tableWithHeader)
+    {
+        // subtract one for header row
+        return Math.Max(0, tableWithHeader.Count - 1);
+    }
+
+    private static void PrintSection(string title, string itemLabel, List<string[]> tableWithHeader, ScanOptions options, ConsoleColor color, string? summarySuffix = null)
+    {
+        int count = GetHostCount(tableWithHeader);
+        if (count <= 0)
+        {
+            return;
+        }
+
+        if (IsSummaryMode(options))
+        {
+            string suffix = summarySuffix ?? " (summary mode)";
+            ConsoleExt.WriteLine($"{title} {itemLabel.ToQuantity(count)}{suffix}", color);
+        }
+        else
+        {
+            Console.WriteLine(title + ":");
+            tableWithHeader.ToArray().To2D().PrintTable(TableStyle.List);
+            ConsoleExt.WriteLine($"{Environment.NewLine}Found {itemLabel.ToQuantity(count)}", color);
+        }
+    }
+
+    private static bool IsSummaryMode(ScanOptions options)
+    {
+        return options is MonitorOptions monitorOptions && monitorOptions.Summary;
+    }
+
+    private static List<IPAddress> GetLocalSubnets()
+    {
+        List<IPAddress> addresses = [];
+
+        foreach (NetworkInterface networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (networkInterface.OperationalStatus != OperationalStatus.Up)
+            {
+                continue;
+            }
+
+            IPInterfaceProperties ipProperties = networkInterface.GetIPProperties();
+            foreach (UnicastIPAddressInformation unicast in ipProperties.UnicastAddresses)
+            {
+                if (unicast.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    continue;
+                }
+
+                int prefixLength = unicast.PrefixLength;
+                if (prefixLength is <= 0 or > 32)
+                {
+                    continue;
+                }
+
+                uint mask = prefixLength == 0 ? 0 : uint.MaxValue << (32 - prefixLength);
+                byte[] ipBytes = unicast.Address.GetAddressBytes();
+                uint ip = (uint)((ipBytes[0] << 24) | (ipBytes[1] << 16) | (ipBytes[2] << 8) | ipBytes[3]);
+                uint network = ip & mask;
+                uint broadcast = network | ~mask;
+
+                for (uint addr = network + 1; addr < broadcast; addr++)
+                {
+                    byte[] addrBytes =
+                    [
+                        (byte)((addr >> 24) & 0xFF),
+                        (byte)((addr >> 16) & 0xFF),
+                        (byte)((addr >> 8) & 0xFF),
+                        (byte)(addr & 0xFF)
+                    ];
+                    addresses.Add(new IPAddress(addrBytes));
+                }
+            }
+        }
+
+        return addresses;
+    }
+
+    private static void ExecuteMonitorCommand(string command, IEnumerable<JsonResult.HostInformation> hosts)
+    {
+        try
+        {
+            ProcessStartInfo psi = new()
+            {
+                FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+                Arguments = OperatingSystem.IsWindows() ? $"/C {command}" : $"-c \"{command}\"",
+                RedirectStandardInput = true,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using Process process = Process.Start(psi)!;
+            string json = JsonSerializer.Serialize(hosts, jsonSerializerOptions);
+            process.StandardInput.WriteLine(json);
+            process.StandardInput.Close();
+        }
+        catch (Exception ex)
+        {
+            ConsoleExt.WriteLine($"Failed to execute monitor command '{command}': {ex.Message}", ConsoleColor.Red);
         }
     }
 }
